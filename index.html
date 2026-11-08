@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tortuga vs. Monster</title>
+<style>
+:root{--bg:#e9efe0;--ink:#1f3324;--shell:#3f7d4a;--skin:#7ea55a;--mon:#7ddc1f;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a13;--ink:#d8e8cc;--shell:#5fae6c;--skin:#a9cf82}}
+:root[data-theme="dark"]{--bg:#101a13;--ink:#d8e8cc;--shell:#5fae6c;--skin:#a9cf82}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ui{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top,0px)) 0 calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+#mid{flex:1;display:flex;align-items:center}
+h1{font-size:1.3rem;margin:0}
+h1,p{text-shadow:0 0 4px var(--bg),0 0 8px var(--bg)}
+p{margin:0;font-size:.9rem;text-align:center;padding:0 12px}
+button{pointer-events:auto}
+button{font:inherit;font-weight:700;background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:10px 22px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--mon);outline-offset:2px}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Juego: una tortuga salta latas de Monster"></canvas>
+<div id="ui">
+<h1>Tortuga vs. Monster</h1>
+<div id="mid"><button id="btn">Empezar</button></div>
+<p id="msg">Toca la pantalla, pulsa espacio o flecha arriba para saltar</p>
+</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+let W=720,H=240,GY=196;const TX=60;
+let t,cans,speed,score,best=0,run=false,frame,nextCan,over=false;
+try{best=+localStorage.getItem('tm-best')||0}catch(e){}
+const bgImg=new Image();bgImg.src='data:image/png;base64,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';
+function fit(){
+  const dpr=window.devicePixelRatio||1,vw=innerWidth,vh=innerHeight,sc=Math.min(vh/240,vw/480);
+  W=vw/sc;H=vh/sc;GY=Math.round(H*0.82);
+  cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
+  g.setTransform(cv.width/W,0,0,cv.height/H,0,0);
+  if(t&&(t.on||t.y>GY)){t.y=GY;t.vy=0;t.on=true}
+}
+addEventListener('resize',fit);
+let triedFull=false;
+function goFull(){
+  if(triedFull)return;triedFull=true;
+  try{const d=document.documentElement;if(!document.fullscreenElement&&d.requestFullscreen){const r=d.requestFullscreen({navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{})}}catch(e){}
+}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const say=s=>document.getElementById('msg').textContent=s;
+const btn=document.getElementById('btn');
+
+
+/* Música 8 bits estilo punk */
+let ac,mg,nb,muted=false,tick=0,timer=null,nextT=0;
+const N=(m)=>440*Math.pow(2,(m-69)/12);
+function note(f,t0,d,type,vol){
+  const o=ac.createOscillator(),v=ac.createGain();
+  o.type=type;o.frequency.value=f;
+  v.gain.setValueAtTime(vol,t0);v.gain.setValueAtTime(vol,t0+d*0.7);v.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+  o.connect(v);v.connect(mg);o.start(t0);o.stop(t0+d+0.02);
+}
+function noise(t0,d,vol,fc,type){
+  const src=ac.createBufferSource();src.buffer=nb;
+  const f=ac.createBiquadFilter();f.type=type;f.frequency.value=fc;
+  const v=ac.createGain();v.gain.setValueAtTime(vol,t0);v.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+  src.connect(f);f.connect(v);v.connect(mg);src.start(t0);src.stop(t0+d+0.02);
+}
+function kick(t0){
+  const o=ac.createOscillator(),v=ac.createGain();
+  o.type='triangle';o.frequency.setValueAtTime(160,t0);o.frequency.exponentialRampToValueAtTime(40,t0+0.12);
+  v.gain.setValueAtTime(0.45,t0);v.gain.exponentialRampToValueAtTime(0.0001,t0+0.14);
+  o.connect(v);v.connect(mg);o.start(t0);o.stop(t0+0.16);
+}
+/* Progresión I-IV-V-IV en Mi: E5, A5, B5, A5 (power chords: fundamental + quinta + octava) */
+const ROOTS=[52,57,59,57];
+const RIFF=[0,0,7,0,0,7,0,7]; // patrón de corcheas: alterna fundamental y quinta
+function sched(){
+  const sp=60/180/2; // corchea a 180 bpm
+  while(nextT<ac.currentTime+0.3){
+    const i=tick%8,bar=Math.floor(tick/8)%4,r=ROOTS[bar],t=nextT;
+    const accent=(i%2===0)?0.05:0.035;
+    [0,7,12].forEach(iv=>note(N(r+12+iv),t,sp*0.9,'square',accent));
+    note(N(r-12+RIFF[i]),t,sp*0.9,'sawtooth',0.07);
+    if(i%4===0)kick(t);
+    if(i%4===2)noise(t,0.12,0.22,1800,'highpass');
+    noise(t,0.03,0.05,7000,'highpass');
+    if(tick%32===31){noise(t,0.25,0.25,1200,'highpass');kick(t)}
+    nextT+=sp;tick++;
+  }
+}
+function musicStart(){
+  try{
+    if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();mg=ac.createGain();mg.gain.value=1;mg.connect(ac.destination);nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate);const d=nb.getChannelData(0);for(let k=0;k<d.length;k++)d[k]=Math.random()*2-1}
+    if(ac.state==='suspended')ac.resume();
+    if(timer)return;
+    tick=0;nextT=ac.currentTime+0.05;timer=setInterval(sched,60);
+  }catch(e){}
+}
+function musicStop(){if(timer){clearInterval(timer);timer=null}}
+
+function reset(){t={y:GY,vy:0,on:true};cans=[];speed=6;score=0;frame=0;nextCan=70;over=false;run=true;say('Récord: '+best);btn.style.display='none';goFull();if(!muted)musicStart()}
+function jump(){
+  if(!run){reset();return}
+  if(t.on){t.vy=-13.5;t.on=false}
+}
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump()}});
+addEventListener('pointerdown',e=>{if(e.target!==btn)jump()});
+btn.onclick=()=>{jump();btn.blur()};
+
+function drawTurtle(){
+  const y=t.y,l=(t.on&&run)?Math.floor(frame/6)%2:0;
+  g.fillStyle=css('--skin');
+  g.fillRect(TX+36,y-32,16,13);
+  g.fillRect(TX+40,y-22,7,7);
+  g.fillRect(TX+6,y-8,9,8-(l?3:0));
+  g.fillRect(TX+30,y-8,9,8-(l?0:3));
+  g.fillStyle=css('--shell');
+  g.beginPath();g.ellipse(TX+22,y-14,25,17,0,Math.PI,0);g.fill();
+  g.fillRect(TX-3,y-14,50,4);
+  g.strokeStyle=css('--bg');g.lineWidth=2;
+  g.beginPath();g.moveTo(TX+12,y-30);g.lineTo(TX+12,y-14);g.moveTo(TX+30,y-28);g.lineTo(TX+30,y-14);g.stroke();
+  g.fillStyle=css('--bg');g.fillRect(TX+46,y-28,3,3);
+}
+function drawCan(c){
+  const x=c.x,y=GY-c.h,w=c.w;
+  g.fillStyle='#111';g.fillRect(x,y,w,c.h);
+  g.fillStyle=css('--mon');
+  const cx=x+w*0.2,cw=w*0.6;
+  g.fillRect(cx,y+c.h*0.15,cw*0.22,c.h*0.7);
+  g.fillRect(cx+cw*0.39,y+c.h*0.15,cw*0.22,c.h*0.5);
+  g.fillRect(cx+cw*0.78,y+c.h*0.15,cw*0.22,c.h*0.7);
+  g.fillStyle='#aaa';g.fillRect(x,y,w,3);
+}
+function step(){
+  g.clearRect(0,0,W,H);
+  if(bgImg.complete&&bgImg.naturalWidth){g.globalAlpha=0.55;{const kw=W/bgImg.naturalWidth,kh=H/bgImg.naturalHeight,k=Math.max(kw,kh),iw=bgImg.naturalWidth*k,ih=bgImg.naturalHeight*k;if(W>=H)g.drawImage(bgImg,0,0,W,H);else g.drawImage(bgImg,(W-iw)/2,(H-ih)/2,iw,ih)};g.globalAlpha=1}
+  g.strokeStyle=css('--ink');g.lineWidth=2;
+  g.beginPath();g.moveTo(0,GY+1);g.lineTo(W,GY+1);g.stroke();
+  g.fillStyle=css('--ink');
+  for(let i=0;i<14;i++){g.fillRect(((i*97-frame*speed*0.6)%W+W)%W,GY+10+(i%3)*8,10,2)}
+  if(run){
+    frame++;
+    t.vy+=0.75;t.y+=t.vy;
+    if(t.y>=GY){t.y=GY;t.vy=0;t.on=true}
+    if(--nextCan<=0){
+      const h=34+Math.floor(Math.random()*22),r=Math.random(),n=r<0.2?3:(r<0.45?2:1);
+      for(let i=0;i<n;i++)cans.push({x:W+i*26,h:h,w:22});
+      nextCan=Math.max(38,Math.floor(55+Math.random()*60-speed*3));
+    }
+    cans.forEach(c=>c.x-=speed);
+    cans=cans.filter(c=>c.x>-40);
+    speed=Math.min(15,6+frame/500);
+    score=Math.floor(frame/5);
+    for(const c of cans){
+      if(c.x<TX+46&&c.x+c.w>TX-2&&t.y>GY-c.h+4){
+        run=false;over=true;
+        if(score>best){best=score;try{localStorage.setItem('tm-best',best)}catch(e){}}
+        say('Te aplastó una Monster. Puntos: '+score+' · Récord: '+best);
+        musicStop();btn.textContent='Reintentar';btn.style.display='';
+      }
+    }
+  }
+  if(t)drawTurtle();
+  if(cans)cans.forEach(drawCan);
+  g.fillStyle=css('--ink');g.font='700 18px Trebuchet MS,Verdana,sans-serif';g.textAlign='right';
+  g.fillText(String(score||0).padStart(5,'0'),W-12,26);
+  requestAnimationFrame(step);
+}
+fit();
+t={y:GY,vy:0,on:true};cans=[];speed=6;score=0;frame=0;
+say('Toca la pantalla, pulsa espacio o flecha arriba para saltar'+(best?' · Récord: '+best:''));
+requestAnimationFrame(step);
+</script>
+</body>
+</html>
